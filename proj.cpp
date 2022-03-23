@@ -85,7 +85,7 @@ int ZgridSize = 694;
 
 #define CHAR
 
-int startexploreval=20;
+int startexploreval=25;
 int endexploreval=50;
 
 //#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
@@ -126,8 +126,8 @@ const char *location = FICHIER;
 
 int winSize = 500;
 
-int numPasses = 20;
-int nbimages = 20;
+int numPasses = 50;
+int nbimages = 50;
 
 
 const char *prefix = "";
