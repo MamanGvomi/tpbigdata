@@ -34,6 +34,7 @@
 
 #include "config.h"
 #include "unistd.h"
+#include <mpi.h>
 
 #define BIG
 
@@ -77,26 +78,26 @@ int endexploreval=20;
 //int startexploreval=50000;
 //int endexploreval=60000;
 
-#define FICHIER MY_MESHES_PATH "/Mystere6_1118_2046_694_CHAR.raw"
-
-int gridSize = 1118;
-int YgridSize = 2046;
-int ZgridSize = 694;
-
-#define CHAR
-
-int startexploreval=20;
-int endexploreval=50;
-
-//#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
-//int gridSize = 512;
-//int YgridSize = 512;
-//int ZgridSize = 134;
+//#define FICHIER MY_MESHES_PATH "/Mystere6_1118_2046_694_CHAR.raw"
 //
-//#define SHORT
+//int gridSize = 1118;
+//int YgridSize = 2046;
+//int ZgridSize = 694;
 //
-//int startexploreval = 30000;
-//int endexploreval = 45000;
+//#define CHAR
+//
+//int startexploreval=25;
+//int endexploreval=50;
+
+#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
+int gridSize = 512;
+int YgridSize = 512;
+int ZgridSize = 134;
+
+#define SHORT
+
+int startexploreval = 30000;
+int endexploreval = 45000;
 
 //#define FICHIER MY_MESHES_PATH "/Mystere2_512_400_512_SHORT.raw"
 //int gridSize = 512;
@@ -126,8 +127,8 @@ const char *location = FICHIER;
 
 int winSize = 500;
 
-int numPasses = 20;
-int nbimages = 20;
+int numPasses = 5;
+int nbimages = 5;
 
 
 const char *prefix = "";
@@ -141,50 +142,72 @@ using std::endl;
 // Function prototypes
 vtkRectilinearGrid *ReadGrid(int zStart, int zEnd);
 
+vtkRectilinearGrid *ParallelReadGrid(void);
+
+
 void WriteImage(const char *name, const float *rgba, int width, int height);
 
 bool ComposeImageZbuffer(float *rgba_out, float *zbuffer, int image_width, int image_height);
 
+int parRank = 0;
+int parSize = 1;
 
 int main(int argc, char *argv[]) {
+
+    bool once = false;
+    bool parallele = false;
+
+    // MPI setup
+    MPI_Init(&argc, &argv);
+    MPI_Comm_rank(MPI_COMM_WORLD, &parRank);
+    MPI_Comm_size(MPI_COMM_WORLD, &parSize);
+
     srand(time(NULL));
 //    int zStart = 0;
 //    int zEnd = ZgridSize;
 
     int npixels = winSize * winSize;
     vtkRectilinearGrid *reader = NULL;
-    vtkLookupTable *lut = vtkLookupTable::New();
+    if (parallele) {
+        vtkRectilinearGrid *rg = ParallelReadGrid();
 
+    }
+
+    //LookupTable
+    vtkLookupTable *lut = vtkLookupTable::New();
     lut->SetHueRange(0.1, 0.0);
     lut->SetSaturationRange(0.0, 1.0);
     lut->SetValueRange(1.0, 255.0);
     lut->SetNumberOfColors(100);
     lut->Build();
 
+    // Renderer
     vtkRenderer *ren = vtkRenderer::New();
     double bounds[6] = {0.00001, 1 - 0.00001, 0.00001, 1 - 0.00001, 0.00001, 1 - 0.00001};
     ren->ResetCamera(bounds);
 
-    bool once = false;
+    //Windows
     vtkRenderWindow *renwin = vtkRenderWindow::New();
     renwin->SetSize(winSize, winSize);
     renwin->AddRenderer(ren);
 
-    if(once){
-        int zStart = 0;
-        int zEnd = ZgridSize;
-        reader = ReadGrid(zStart, zEnd);
-    }
-
-
+    // Filtre de contour
     vtkContourFilter *cf = vtkContourFilter::New();
     cf->SetNumberOfContours(1);
     // cf->SetValue(0, 20.0);
     int valcont = startexploreval;
     cf->SetValue(1, valcont);
-
+    if (once) {
+        //On lis tous le fichier
+        int zStart = 0;
+        int zEnd = ZgridSize;
+        reader = ReadGrid(zStart, zEnd);
+    }
+    //Sinon y'a rien pour le moment
     cf->SetInputData(reader);
 
+
+    // Ici je crois qu'on s'assure que l'image s'affiche dans la windows
     int maxsize = std::max(gridSize, std::max(YgridSize, ZgridSize));
     vtkSmartPointer<vtkTransform> transform = vtkSmartPointer<vtkTransform>::New();
     transform->Scale(gridSize / (float) maxsize, YgridSize / (float) maxsize, ZgridSize / (float) maxsize);
@@ -192,13 +215,14 @@ int main(int argc, char *argv[]) {
 //    transform->RotateX(-20);
     vtkSmartPointer<vtkTransformFilter> transformFilter = vtkSmartPointer<vtkTransformFilter>::New();
     transformFilter->SetInputConnection(cf->GetOutputPort());
+//    transformFilter->SetInputData(reader);
     transformFilter->SetTransform(transform);
 
 
+    // Mapper
     vtkDataSetMapper *mapper = vtkDataSetMapper::New();
-    mapper->SetInputData( reader );
+//    mapper->SetInputData(reader);
     mapper->SetInputConnection(transformFilter->GetOutputPort());
-
 
     vtkActor *actor = vtkActor::New();
     actor->SetMapper(mapper);
@@ -208,17 +232,14 @@ int main(int argc, char *argv[]) {
 
 
     mapper->SetScalarRange(startexploreval, endexploreval);
-
-
     mapper->SetLookupTable(lut);
-
 
     ren->AddActor(actor);
     ren->SetViewport(0, 0, 1, 1);
 
+    vtkCamera *cam;
 
     // vtkCamera *cam = ren->GetActiveCamera();
-    vtkCamera *cam;
 //            if(once){
 //                once=false;
 //                cam= ren->GetActiveCamera();
@@ -236,6 +257,7 @@ int main(int argc, char *argv[]) {
     cam->SetFocalPoint(0.5, 0.5, 0.5);
     cam->SetPosition(-1., 0.0, 3.);
     cam->SetViewUp(0, 1.0, 0.0);
+    cam->Roll(-180);
     ren->ResetCamera(bounds);
 
 //    cam->Pitch();
@@ -258,11 +280,16 @@ int main(int argc, char *argv[]) {
         renwin->Render();
         iren->Start();
     } else {
+        //Les buffers locaux
+//        renwin->Render();
         float *rgba = new float[4 * winSize * winSize];
         float *zbuffer = new float[winSize * winSize];
         float *auxrgba = new float[4 * winSize * winSize]; // rgba pour final
         float *auxzbuffer = new float[4 * winSize * winSize]; // zbuffer pour final
+        bool transparence = true;
 
+
+        //Init des buffers pour l'image final
         for (int i = 0; i < winSize * winSize; i++) {
             auxzbuffer[i] = 1.0;
             auxrgba[i * 4] = 0;
@@ -270,17 +297,24 @@ int main(int argc, char *argv[]) {
             auxrgba[i * 4 + 2] = 1;
             auxrgba[i * 4 + 3] = 0;
         }
+        //Je ne gère pas les restes.... :'-(
         int step = (ZgridSize / nbimages);
         for (numPasses = 0; numPasses < nbimages; numPasses++) {
 
-
+            //La zone de travail
             int zEnd = (numPasses + 1) * step;
             int zStart = numPasses * step;
+
+            //Sinon ca bug a la fin (je sais pas trop pourquoi honnetement)
             if (numPasses == nbimages - 1) {
                 zEnd = (numPasses + 1) * step - 1;
             }
+
+            //On remplis
             reader = ReadGrid(zStart, zEnd);
+            //Le filtre conteur le lis
             cf->SetInputData(reader);
+            //On le delete (il a fait son taf)
             reader->Delete();
 
             // Force an update and set the parallel rank as the active scalars.
@@ -300,10 +334,9 @@ int main(int argc, char *argv[]) {
             char namez[128];
             sprintf(namez, "imageZ%d.png", numPasses);
             WriteImage(namez, new_rgba, winSize, winSize);
-            bool transparence = false;
             // Pour l'image finale
             for (int i = 0; i < winSize * winSize; i++) {
-                if(!transparence){
+                if (!transparence) {
                     if (auxzbuffer[i] >= zbuffer[i]) {
                         auxzbuffer[i] = zbuffer[i];
                         auxrgba[i * 4] = rgba[i * 4];
@@ -311,11 +344,11 @@ int main(int argc, char *argv[]) {
                         auxrgba[i * 4 + 2] = rgba[i * 4 + 2];
                         auxrgba[i * 4 + 3] = rgba[i * 4 + 3];
                     }
-                }else{
-                    auxrgba[i * 4] = (auxrgba[i * 4] + rgba[i * 4])/2 + 510;
-                    auxrgba[i * 4 + 1] = (auxrgba[i * 4 + 1] + rgba[i * 4 + 1])/2 +510;
-                    auxrgba[i * 4 + 2] = (auxrgba[i * 4 + 2] + rgba[i * 4 + 2])/2 +510;
-                    auxrgba[i * 4 + 3] = (auxrgba[i * 4 + 3] + rgba[i * 4 + 3])/2 +510;
+                } else {
+                    auxrgba[i * 4] = (auxrgba[i * 4] + rgba[i * 4]) / 2 + 510;
+                    auxrgba[i * 4 + 1] = (auxrgba[i * 4 + 1] + rgba[i * 4 + 1]) / 2 + 510;
+                    auxrgba[i * 4 + 2] = (auxrgba[i * 4 + 2] + rgba[i * 4 + 2]) / 2 + 510;
+                    auxrgba[i * 4 + 3] = (auxrgba[i * 4 + 3] + rgba[i * 4 + 3]) / 2 + 510;
                 }
 
             }
@@ -325,12 +358,9 @@ int main(int argc, char *argv[]) {
             free(new_rgba);
 
         }
-        WriteImage("final_image.png", auxrgba, winSize, winSize);
-
+        WriteImage((transparence) ? "final_image_transparence.png" : "final_image.png", auxrgba, winSize, winSize);
     }
     //*/
-
-
 
     reader->Delete();
     mapper->Delete();
@@ -554,3 +584,46 @@ bool ComposeImageZbuffer(float *rgba_out, float *zbuffer, int image_width, int i
     return false;
 }
 
+
+vtkRectilinearGrid *ParallelReadGrid(void) {
+//    int zStart = (gridSize / 1.7) - 1;
+//    int zEnd = (gridSize / 1.5) - 1;
+    int zStart = (gridSize / parSize) * parRank;
+    int zEnd = ((gridSize / parSize)) * (parRank + 1);
+    if (parRank == parSize - 1) {
+        zEnd = ((gridSize / parSize)) * (parRank + 1) - 1;
+    }
+//    int zStart = 0;
+//    int zEnd = (gridSize)-1;
+
+    // if you don't want any data for this processor, just do this:
+    //    return NULL;
+
+    return ReadGrid(zStart, zEnd);
+}
+
+bool CompositeImage(float *rgba_in, float *zbuffer, float *rgba_out,
+                    int image_width, int image_height) {
+    int npixels = image_width * image_height;
+    float *zbufferMin = new float[npixels];
+    float *rgba_tmp = new float[4 * npixels];
+
+    MPI_Allreduce(zbuffer, zbufferMin, npixels, MPI_FLOAT, MPI_MIN, MPI_COMM_WORLD);
+    for (int i = 0; i < npixels; i++) {
+        // Sans transparance
+        if (zbufferMin[i] == zbuffer[i]) {
+            rgba_tmp[i * 4] = rgba_in[i * 4];
+            rgba_tmp[i * 4 + 1] = rgba_in[i * 4 + 1];
+            rgba_tmp[i * 4 + 2] = rgba_in[i * 4 + 2];
+            rgba_tmp[i * 4 + 3] = rgba_in[i * 4 + 3];
+        }
+        // Avec transparence
+//            rgba_tmp[i * 4] = (rgba_tmp[i * 4] + rgba_in[i * 4]) / 2;
+//            rgba_tmp[i * 4 + 1] =  (rgba_tmp[i * 4 + 1] + rgba_in[i * 4 + 1]) / 2;
+//            rgba_tmp[i * 4 + 2] =  (rgba_tmp[i * 4 + 2] + rgba_in[i * 4 + 2]) / 2;
+//            rgba_tmp[i * 4 + 3] =  (rgba_tmp[i * 4 + 3] + rgba_in[i * 4 + 3]) / 2;
+
+    }
+    MPI_Reduce(rgba_tmp, rgba_out, 4 * npixels, MPI_FLOAT, MPI_MAX, 0, MPI_COMM_WORLD);
+    return true;
+}
