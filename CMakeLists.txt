@@ -27,6 +27,7 @@ SET(OperatingSystem "Linux")
 
 find_package(VTK )
 #set (MY_MESHES_PATH /media/emgeve/MGV/mystere/)
+#set (MY_MESHES_PATH /home/tplocal/Bureau/trucbigdata)
 set (MY_MESHES_PATH /share/etud/mystere/)
 
 ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")

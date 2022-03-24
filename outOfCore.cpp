@@ -96,16 +96,16 @@ int endexploreval=255;
 //int startexploreval=55;
 //int endexploreval=65;
 
-#define FICHIER MY_MESHES_PATH "/Mystere10_1204_1296_224_CHAR.raw"
-
-int gridSize = 1204;
-int YgridSize = 1296;
-int ZgridSize = 224;
-
-#define CHAR
-
-int startexploreval=40;
-int endexploreval=55;
+//#define FICHIER MY_MESHES_PATH "/Mystere10_1204_1296_224_CHAR.raw"
+//
+//int gridSize = 1204;
+//int YgridSize = 1296;
+//int ZgridSize = 224;
+//
+//#define CHAR
+//
+//int startexploreval=40;
+//int endexploreval=55;
 
 
 
@@ -119,15 +119,25 @@ int endexploreval=55;
 //int startexploreval = 30000;
 //int endexploreval = 45000;
 
-//#define FICHIER MY_MESHES_PATH "/Mystere9_2048_2048_1444_SHORT.raw"
-//int gridSize = 2048;
-//int YgridSize = 2048;
-//int ZgridSize = 1444;
+//#define FICHIER MY_MESHES_PATH "/Mystere11_512_512_1024_SHORT.raw"
+//int gridSize = 512;
+//int YgridSize = 512;
+//int ZgridSize = 1024;
 //
 //#define SHORT
 //
-//int startexploreval = 30000;
-//int endexploreval = 45000;
+//int startexploreval = 45000;
+//int endexploreval = 55000;
+
+#define FICHIER MY_MESHES_PATH "/Mystere9_2048_2048_1444_SHORT.raw"
+int gridSize = 2048;
+int YgridSize = 2048;
+int ZgridSize = 1444;
+
+#define SHORT
+
+int startexploreval = 30000;
+int endexploreval = 45000;
 
 
 /*
@@ -258,15 +268,15 @@ int main(int argc, char *argv[]) {
         ren->SetViewport(0, 0, 1, 1);
 
         vtkCamera *cam;
-        cam = ren->GetActiveCamera();
-        cam->SetFocalPoint(0.5, 0.5, 0.5);
-        cam->SetPosition(-0., .0, 3.);
-        cam->SetViewUp(0., -1.0, 0.0);
+//        cam = ren->GetActiveCamera();
+//        cam->SetFocalPoint(0.5, 0.5, 0.5);
+//        cam->SetPosition(-0., .0, 3.);
+//        cam->SetViewUp(0., -1.0, 0.0);
 //    ren->SetActiveCamera(cam);
-//    cam = ren->GetActiveCamera();
-//    cam->SetPosition(0.5, 3.0, 0.5);
-//    cam->SetViewUp(0., 0.0, 1.0);
-//    cam->SetFocalPoint(0., 0.0, 0.);
+    cam = ren->GetActiveCamera();
+    cam->SetPosition(0.5, 3.0, 2.0);
+    cam->SetViewUp(0., 0.0, 1.0);
+    cam->SetFocalPoint(0., 0.0, 0.);
 
 //
 
@@ -309,7 +319,6 @@ int main(int argc, char *argv[]) {
         free(rgba);
         free(zbuffer);
         free(new_rgba);
-        free(auxzbuffer);
 
     }
 
