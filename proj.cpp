@@ -86,18 +86,30 @@ int endexploreval=20;
 //
 //#define CHAR
 //
-//int startexploreval=25;
+//int startexploreval=15;
 //int endexploreval=50;
 
-#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
-int gridSize = 512;
-int YgridSize = 512;
-int ZgridSize = 134;
+#define FICHIER MY_MESHES_PATH "/Mystere8_2048_2048_2048_CHAR.raw"
 
-#define SHORT
+int gridSize = 2048;
+int YgridSize = 2048;
+int ZgridSize = 2048;
 
-int startexploreval = 30000;
-int endexploreval = 45000;
+#define CHAR
+
+int startexploreval = 30;
+int endexploreval = 80;
+
+
+//#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
+//int gridSize = 512;
+//int YgridSize = 512;
+//int ZgridSize = 134;
+//
+//#define SHORT
+//
+//int startexploreval = 30000;
+//int endexploreval = 45000;
 
 //#define FICHIER MY_MESHES_PATH "/Mystere2_512_400_512_SHORT.raw"
 //int gridSize = 512;
@@ -114,7 +126,7 @@ int endexploreval = 45000;
 int gridSize = 512;
 int YgridSize = 512;
 int ZgridSize = 322;
- 
+
  #define SHORT
 
  int startexploreval=1;
@@ -147,6 +159,9 @@ vtkRectilinearGrid *ParallelReadGrid(void);
 
 void WriteImage(const char *name, const float *rgba, int width, int height);
 
+bool CompositeImage(float *rgba_in, float *zbuffer, float *rgba_out,
+                    int image_width, int image_height);
+
 bool ComposeImageZbuffer(float *rgba_out, float *zbuffer, int image_width, int image_height);
 
 int parRank = 0;
@@ -155,7 +170,7 @@ int parSize = 1;
 int main(int argc, char *argv[]) {
 
     bool once = false;
-    bool parallele = false;
+    bool parallele = true;
 
     // MPI setup
     MPI_Init(&argc, &argv);
@@ -168,10 +183,6 @@ int main(int argc, char *argv[]) {
 
     int npixels = winSize * winSize;
     vtkRectilinearGrid *reader = NULL;
-    if (parallele) {
-        vtkRectilinearGrid *rg = ParallelReadGrid();
-
-    }
 
     //LookupTable
     vtkLookupTable *lut = vtkLookupTable::New();
@@ -183,8 +194,8 @@ int main(int argc, char *argv[]) {
 
     // Renderer
     vtkRenderer *ren = vtkRenderer::New();
-    double bounds[6] = {0.00001, 1 - 0.00001, 0.00001, 1 - 0.00001, 0.00001, 1 - 0.00001};
-    ren->ResetCamera(bounds);
+//    double bounds[6] = {0.00001, 1 - 0.00001, 0.00001, 1 - 0.00001, 0.00001, 1 - 0.00001};
+//    ren->ResetCamera(bounds);
 
     //Windows
     vtkRenderWindow *renwin = vtkRenderWindow::New();
@@ -201,7 +212,7 @@ int main(int argc, char *argv[]) {
         //On lis tous le fichier
         int zStart = 0;
         int zEnd = ZgridSize;
-        reader = ReadGrid(zStart, zEnd);
+        reader = (parallele) ? ParallelReadGrid() : ReadGrid(zStart, zEnd);
     }
     //Sinon y'a rien pour le moment
     cf->SetInputData(reader);
@@ -257,8 +268,8 @@ int main(int argc, char *argv[]) {
     cam->SetFocalPoint(0.5, 0.5, 0.5);
     cam->SetPosition(-1., 0.0, 3.);
     cam->SetViewUp(0, 1.0, 0.0);
-    cam->Roll(-180);
-    ren->ResetCamera(bounds);
+//    cam->Roll(-180);
+//    ren->ResetCamera(bounds);
 
 //    cam->Pitch();
 //    bounds=ren->ComputeVisiblePropBounds();
@@ -286,7 +297,7 @@ int main(int argc, char *argv[]) {
         float *zbuffer = new float[winSize * winSize];
         float *auxrgba = new float[4 * winSize * winSize]; // rgba pour final
         float *auxzbuffer = new float[4 * winSize * winSize]; // zbuffer pour final
-        bool transparence = true;
+        bool transparence = false;
 
 
         //Init des buffers pour l'image final
@@ -297,68 +308,101 @@ int main(int argc, char *argv[]) {
             auxrgba[i * 4 + 2] = 1;
             auxrgba[i * 4 + 3] = 0;
         }
-        //Je ne gère pas les restes.... :'-(
-        int step = (ZgridSize / nbimages);
-        for (numPasses = 0; numPasses < nbimages; numPasses++) {
+        //Je ne gère pas les restes.... :'(
+        if (!parallele) {
 
-            //La zone de travail
-            int zEnd = (numPasses + 1) * step;
-            int zStart = numPasses * step;
+            int step = (ZgridSize / nbimages);
+            for (numPasses = 0; numPasses < nbimages; numPasses++) {
 
-            //Sinon ca bug a la fin (je sais pas trop pourquoi honnetement)
-            if (numPasses == nbimages - 1) {
-                zEnd = (numPasses + 1) * step - 1;
+                //La zone de travail
+                int zEnd = (numPasses + 1) * step;
+                int zStart = numPasses * step;
+
+                //Sinon ca bug a la fin (je sais pas trop pourquoi honnetement)
+                if (numPasses == nbimages - 1) {
+                    zEnd = (numPasses + 1) * step - 1;
+                }
+
+                //On remplis
+                reader = (parallele) ? ParallelReadGrid() : ReadGrid(zStart, zEnd);
+                //Le filtre conteur le lis
+                cf->SetInputData(reader);
+                //On le delete (il a fait son taf)
+                reader->Delete();
+
+                // Force an update and set the parallel rank as the active scalars.
+                cf->Update();
+//            double * bounds=ren->ComputeVisiblePropBounds();
+//            ren->ResetCamera(bounds);
+                renwin->Render();
+
+                rgba = renwin->GetRGBAPixelData(0, 0, winSize - 1, winSize - 1, 1);
+                zbuffer = renwin->GetZbufferData(0, 0, winSize - 1, winSize - 1);
+                char name[128];
+                sprintf(name, "image%d.png", numPasses);
+                WriteImage(name, rgba, winSize, winSize);
+
+
+                float *new_rgba = new float[4 * winSize * winSize];
+                bool didComposite = (parallele) ? CompositeImage(rgba, zbuffer, new_rgba, winSize, winSize)
+                                                : ComposeImageZbuffer(new_rgba, zbuffer, winSize, winSize);
+
+                char namez[128];
+                sprintf(namez, "imageZ%d.png", numPasses);
+                WriteImage(namez, new_rgba, winSize, winSize);
+                // Pour l'image finale
+                for (int i = 0; i < winSize * winSize; i++) {
+                    if (!transparence) {
+                        if (auxzbuffer[i] >= zbuffer[i]) {
+                            auxzbuffer[i] = zbuffer[i];
+                            auxrgba[i * 4] = rgba[i * 4];
+                            auxrgba[i * 4 + 1] = rgba[i * 4 + 1];
+                            auxrgba[i * 4 + 2] = rgba[i * 4 + 2];
+                            auxrgba[i * 4 + 3] = rgba[i * 4 + 3];
+                        }
+                    } else {
+                        auxrgba[i * 4] = (auxrgba[i * 4] + rgba[i * 4]) / 2 + 510;
+                        auxrgba[i * 4 + 1] = (auxrgba[i * 4 + 1] + rgba[i * 4 + 1]) / 2 + 510;
+                        auxrgba[i * 4 + 2] = (auxrgba[i * 4 + 2] + rgba[i * 4 + 2]) / 2 + 510;
+                        auxrgba[i * 4 + 3] = (auxrgba[i * 4 + 3] + rgba[i * 4 + 3]) / 2 + 510;
+                    }
+
+                }
+
+                free(rgba);
+                free(zbuffer);
+                free(new_rgba);
             }
 
-            //On remplis
-            reader = ReadGrid(zStart, zEnd);
+        } else {
+            reader = ParallelReadGrid();
             //Le filtre conteur le lis
             cf->SetInputData(reader);
             //On le delete (il a fait son taf)
             reader->Delete();
-
             // Force an update and set the parallel rank as the active scalars.
             cf->Update();
+//            double * bounds=ren->ComputeVisiblePropBounds();
+//            ren->ResetCamera(bounds);
             renwin->Render();
-
-            rgba = renwin->GetRGBAPixelData(0, 0, winSize - 1, winSize - 1, 1);
-            zbuffer = renwin->GetZbufferData(0, 0, winSize - 1, winSize - 1);
-            char name[128];
-            sprintf(name, "image%d.png", numPasses);
-            WriteImage(name, rgba, winSize, winSize);
+            rgba = renwin->GetRGBAPixelData(0, 0, (winSize - 1), (winSize - 1), 1);
+            zbuffer = renwin->GetZbufferData(0, 0, (winSize - 1), (winSize - 1));
 
 
             float *new_rgba = new float[4 * winSize * winSize];
-            bool didComposite = ComposeImageZbuffer(new_rgba, zbuffer, winSize, winSize);
-
-            char namez[128];
-            sprintf(namez, "imageZ%d.png", numPasses);
-            WriteImage(namez, new_rgba, winSize, winSize);
-            // Pour l'image finale
-            for (int i = 0; i < winSize * winSize; i++) {
-                if (!transparence) {
-                    if (auxzbuffer[i] >= zbuffer[i]) {
-                        auxzbuffer[i] = zbuffer[i];
-                        auxrgba[i * 4] = rgba[i * 4];
-                        auxrgba[i * 4 + 1] = rgba[i * 4 + 1];
-                        auxrgba[i * 4 + 2] = rgba[i * 4 + 2];
-                        auxrgba[i * 4 + 3] = rgba[i * 4 + 3];
-                    }
-                } else {
-                    auxrgba[i * 4] = (auxrgba[i * 4] + rgba[i * 4]) / 2 + 510;
-                    auxrgba[i * 4 + 1] = (auxrgba[i * 4 + 1] + rgba[i * 4 + 1]) / 2 + 510;
-                    auxrgba[i * 4 + 2] = (auxrgba[i * 4 + 2] + rgba[i * 4 + 2]) / 2 + 510;
-                    auxrgba[i * 4 + 3] = (auxrgba[i * 4 + 3] + rgba[i * 4 + 3]) / 2 + 510;
+            bool didComposite = CompositeImage(rgba, zbuffer, new_rgba, winSize, winSize);
+            if (didComposite) {
+                if (parRank == 0) {
+                    WriteImage("final_image_MPI.png", new_rgba, winSize, winSize);
                 }
 
+                char name[128];
+                sprintf(name, "img_MPI%d.png", parRank);
+                WriteImage(name, rgba, winSize, winSize);
+
             }
-
-            free(rgba);
-            free(zbuffer);
-            free(new_rgba);
-
         }
-        WriteImage((transparence) ? "final_image_transparence.png" : "final_image.png", auxrgba, winSize, winSize);
+//        WriteImage((transparence) ? "final_image_transparence.png" : "final_image.png", auxrgba, winSize, winSize);
     }
     //*/
 
@@ -426,7 +470,7 @@ ReadGrid(int zStart, int zEnd) {
     unsigned int bytesPerSlice = sizeof(short) * valuesPerSlice;
 
 #elif defined(CHAR)
-    unsigned int bytesPerSlice   = sizeof(char)*valuesPerSlice;
+    unsigned int bytesPerSlice = sizeof(char) * valuesPerSlice;
 
 #elif  defined(FLOAT)
     unsigned int bytesPerSlice   = sizeof(float)*valuesPerSlice;
@@ -458,7 +502,7 @@ ReadGrid(int zStart, int zEnd) {
     vtkUnsignedCharArray *scalars = vtkUnsignedCharArray::New();
     scalars->SetNumberOfTuples(valuesToRead);
     unsigned char *arr = scalars->GetPointer(0);
-    
+
 #elif  defined(FLOAT)
     vtkFloatArray *scalars = vtkFloatArray::New();
     scalars->SetNumberOfTuples(valuesToRead);
@@ -485,7 +529,7 @@ ReadGrid(int zStart, int zEnd) {
             std::cout << (unsigned short) (scalars->GetPointer(0))[i] << " ";
 
 #elif defined(CHAR)
-            std::cout<<+(unsigned char)(scalars->GetPointer(0))[i]<<" ";
+            std::cout << +(unsigned char) (scalars->GetPointer(0))[i] << " ";
 
 #elif  defined(FLOAT)
             std::cout<<(float)(scalars->GetPointer(0))[i]<<" ";
@@ -588,10 +632,10 @@ bool ComposeImageZbuffer(float *rgba_out, float *zbuffer, int image_width, int i
 vtkRectilinearGrid *ParallelReadGrid(void) {
 //    int zStart = (gridSize / 1.7) - 1;
 //    int zEnd = (gridSize / 1.5) - 1;
-    int zStart = (gridSize / parSize) * parRank;
-    int zEnd = ((gridSize / parSize)) * (parRank + 1);
+    int zStart = (ZgridSize / parSize) * parRank;
+    int zEnd = ((ZgridSize / parSize)) * (parRank + 1);
     if (parRank == parSize - 1) {
-        zEnd = ((gridSize / parSize)) * (parRank + 1) - 1;
+        zEnd = ((ZgridSize / parSize)) * (parRank + 1) - 1;
     }
 //    int zStart = 0;
 //    int zEnd = (gridSize)-1;

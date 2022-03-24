@@ -26,6 +26,7 @@ IF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 SET(OperatingSystem "Linux")
 
 find_package(VTK )
+#set (MY_MESHES_PATH /media/emgeve/MGV/mystere/)
 set (MY_MESHES_PATH /share/etud/mystere/)
 
 ENDIF(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
@@ -53,10 +54,11 @@ include(${VTK_USE_FILE})
 find_package(MPI REQUIRED)
 include_directories(${MPI_INCLUDE_PATH})
 
- 
- 
 
-file(GLOB SRC_LIST ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp )
+
+
+#file(GLOB SRC_LIST ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp )
+file(GLOB SRC_LIST outOfCore.cpp )
 
 
 
