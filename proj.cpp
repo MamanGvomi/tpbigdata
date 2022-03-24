@@ -183,10 +183,6 @@ int main(int argc, char *argv[]) {
 
     int npixels = winSize * winSize;
     vtkRectilinearGrid *reader = NULL;
-    if (parallele) {
-        vtkRectilinearGrid *rg = ParallelReadGrid();
-
-    }
 
     //LookupTable
     vtkLookupTable *lut = vtkLookupTable::New();
