@@ -96,12 +96,33 @@ int endexploreval=255;
 //int startexploreval=55;
 //int endexploreval=65;
 
+#define FICHIER MY_MESHES_PATH "/Mystere10_1204_1296_224_CHAR.raw"
+
+int gridSize = 1204;
+int YgridSize = 1296;
+int ZgridSize = 224;
+
+#define CHAR
+
+int startexploreval=40;
+int endexploreval=55;
+
 
 
 //#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
 //int gridSize = 512;
 //int YgridSize = 512;
 //int ZgridSize = 134;
+//
+//#define SHORT
+//
+//int startexploreval = 30000;
+//int endexploreval = 45000;
+
+//#define FICHIER MY_MESHES_PATH "/Mystere9_2048_2048_1444_SHORT.raw"
+//int gridSize = 2048;
+//int YgridSize = 2048;
+//int ZgridSize = 1444;
 //
 //#define SHORT
 //
@@ -128,7 +149,7 @@ const char *location = FICHIER;
 int winSize = 500;
 
 int numPasses = 0;
-int nbimages = 25;
+int nbimages = 5;
 
 
 const char *prefix = "";
@@ -205,7 +226,7 @@ int main(int argc, char *argv[]) {
     }
 
 
-    for (int numPasses = 0; numPasses < nbimages; numPasses+=2) {
+    for (int numPasses = 0; numPasses < nbimages; numPasses++) {
 
         // Out of core
         int step = (ZgridSize / nbimages);
