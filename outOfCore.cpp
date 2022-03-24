@@ -84,15 +84,29 @@ int endexploreval=255;
 
 //*/
 
-#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
-int gridSize = 512;
-int YgridSize = 512;
-int ZgridSize = 134;
 
-#define SHORT
+//#define FICHIER MY_MESHES_PATH "/Mystere8_2048_2048_2048_CHAR.raw"
+//
+//int gridSize = 2048;
+//int YgridSize = 2048;
+//int ZgridSize = 2048;
+//
+//#define CHAR
+//
+//int startexploreval=55;
+//int endexploreval=65;
 
-int startexploreval = 30000;
-int endexploreval = 45000;
+
+
+//#define FICHIER MY_MESHES_PATH "/Mystere1_512_512_134_SHORT.raw"
+//int gridSize = 512;
+//int YgridSize = 512;
+//int ZgridSize = 134;
+//
+//#define SHORT
+//
+//int startexploreval = 30000;
+//int endexploreval = 45000;
 
 
 /*
@@ -114,7 +128,7 @@ const char *location = FICHIER;
 int winSize = 500;
 
 int numPasses = 0;
-int nbimages = 10;
+int nbimages = 25;
 
 
 const char *prefix = "";
@@ -191,7 +205,8 @@ int main(int argc, char *argv[]) {
     }
 
 
-    for (int numPasses = 0; numPasses < nbimages; numPasses++) {
+    for (int numPasses = 0; numPasses < nbimages; numPasses+=2) {
+
         // Out of core
         int step = (ZgridSize / nbimages);
         //La zone de travail
@@ -273,10 +288,12 @@ int main(int argc, char *argv[]) {
         free(rgba);
         free(zbuffer);
         free(new_rgba);
+        free(auxzbuffer);
 
     }
-    WriteImage((transparence) ? "final_image_transparence.png" : "final_image.png", auxrgba, winSize, winSize);
 
+    WriteImage((transparence) ? "final_image_transparence.png" : "final_image.png", auxrgba, winSize, winSize);
+    free(auxrgba);
 
     reader->Delete();
     mapper->Delete();
