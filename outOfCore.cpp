@@ -159,7 +159,7 @@ const char *location = FICHIER;
 int winSize = 500;
 
 int numPasses = 0;
-int nbimages = 5;
+int nbimages = 100;
 
 
 const char *prefix = "";
